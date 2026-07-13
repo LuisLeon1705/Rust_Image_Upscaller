@@ -1,0 +1,25 @@
+# Generado por Cargo
+/target/
+/Debug/
+/debug/
+
+# Archivos de respaldo generados por rustfmt
+**/*.rs.bk
+
+# Archivos generados por builds en Windows con MSVC
+*.pdb
+
+# Archivos temporales y de sistema
+*.tmp
+*.temp
+*.swp
+.DS_Store
+
+# Entornos de desarrollo
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

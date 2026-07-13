@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adaptive Upscaler - GPU Rust</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: var(--panel-bg);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            text-align: center;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #cbd5e1;
+        }
+        input[type="file"], input[type="range"] {
+            padding: 0.5rem;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 0.5rem;
+            color: white;
+            transition: border-color 0.3s ease;
+        }
+        input[type="file"]:hover, input[type="range"]:hover {
+            border-color: var(--accent);
+        }
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .slider-wrapper input {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            padding: 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            background: var(--accent-gradient);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+        }
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        #result-container {
+            margin-top: 2rem;
+            text-align: center;
+            display: none;
+        }
+        #result-img {
+            max-width: 100%;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            margin-top: 1rem;
+        }
+        .loader {
+            display: none;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .tabs {
+            display: flex;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: #94a3b8;
+            transition: color 0.3s, border-bottom 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .tab.active {
+            color: var(--accent);
+            border-bottom: 2px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Adaptive Upscaler</h1>
+        
+        <div class="tabs" id="mode-tabs">
+            <div class="tab active" id="mode-upscale" data-mode="upscale">Escalar Resolución</div>
+            <div class="tab" id="mode-restore" data-mode="restore">Restaurar Artefactos</div>
+        </div>
+
+        <div class="tabs" id="type-tabs" style="margin-top: -1rem;">
+            <div class="tab active" id="type-image" data-type="image">Imagen</div>
+            <div class="tab" id="type-video" data-type="video">Video</div>
+        </div>
+
+        <form id="upscale-form">
+            <div class="form-group">
+                <label id="file-label" for="image">Selecciona una Imagen</label>
+                <input type="file" id="image" accept="image/jpeg, image/png, image/webp" required>
+            </div>
+            
+            <div id="restore-controls" style="display: none;">
+                <div class="form-group">
+                    <label for="restoreFilter">Filtro de Restauración</label>
+                    <select id="restoreFilter" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+                        <option value="bilateral">Filtro Bilateral (Suavizado conservando bordes)</option>
+                        <option value="median">Filtro de Mediana (Ruido sal y pimienta)</option>
+                        <option value="deblock">Filtro Deblocking (Cuadros JPEG/MP4)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="bilateral-tol-group">
+                    <label for="bilateralTol">Tolerancia de Color (Bilateral)</label>
+                    <input type="range" id="bilateralTol" min="0.01" max="0.5" step="0.01" value="0.1" style="width:100%;">
+                    <small style="color: #94a3b8;" id="bilateralTolVal">0.1</small>
+                </div>
+                
+                <div class="form-group" id="deblock-int-group" style="display: none;">
+                    <label for="deblockInt">Intensidad del Deblocking</label>
+                    <input type="range" id="deblockInt" min="0.0" max="1.0" step="0.05" value="0.5" style="width:100%;">
+                    <small style="color: #94a3b8;" id="deblockIntVal">0.5</small>
+                </div>
+            </div>
+
+            <div id="upscale-controls">
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="refine">
+                        Refinar Bordes (Post-Procesado Anti-Aliasing FXAA)
+                    </label>
+                </div>
+
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                    <input type="checkbox" id="debugMode">
+                    Modo Debug (Guardar Recortes individualmente en disco)
+                </label>
+            </div>
+            
+            <div class="form-group">
+                <label for="algorithm">Algoritmo de Interpolación</label>
+                <select id="algorithm" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+                    <option value="lanczos3">Lanczos3 (Alta Calidad)</option>
+                    <option value="bilinear">Bilineal (Rápido)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="padding">Padding de Tiles (Píxeles extras por borde)</label>
+                <input type="number" id="padding" min="0" max="64" step="1" value="16" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+            </div>
+            
+            <div class="form-group" id="scale-group">
+                <label for="scale">Multiplicador de Escalado (ej. 1.5, 4.0, 0.5 para downscale)</label>
+                <input type="number" id="scale" min="0.1" step="0.1" value="4.0" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+            </div>
+            </div> <!-- end upscale-controls -->
+
+            <div class="form-group" id="fps-group" style="display: none; flex-direction: column;">
+                <label for="fps">FPS del Video</label>
+                <input type="number" id="fps" min="1" max="144" step="1" value="30" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+                <small style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.8rem;">
+                    Requerido para videos. Extrae y ensambla forzosamente a estos FPS (soluciona bugs de 1000fps en WebM).
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="vramLimit">Límite de VRAM de la GPU (MB)</label>
+                <input type="number" id="vramLimit" min="512" max="32768" step="128" value="1024" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+                <small style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.8rem;">
+                    Sube este valor al máximo que permita tu tarjeta gráfica. El sistema de Inteligencia Artificial detectará automáticamente el tamaño de los frames y usará toda esta memoria para procesar la mayor cantidad de cuadros en paralelo.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="seamRatio">Proporción de Difuminado de Bordes</label>
+                <div class="slider-wrapper">
+                    <input type="range" id="seamRatio" min="0" max="0.2" step="0.01" value="0.05">
+                    <span id="seamRatio-val">0.05</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="contrastThresh">Sensibilidad de Contraste (Shader)</label>
+                <div class="slider-wrapper">
+                    <input type="range" id="contrastThresh" min="0.05" max="0.5" step="0.01" value="0.25">
+                    <span id="contrastThresh-val">0.25</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="blendMax">Mezcla Máxima de Refinamiento</label>
+                <div class="slider-wrapper">
+                    <input type="range" id="blendMax" min="0" max="1.0" step="0.05" value="0.5">
+                    <span id="blendMax-val">0.5</span>
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn">
+                <span>Escalar Imagen</span>
+                <div class="loader" id="loader"></div>
+            </button>
+            <div id="progress-container" style="display: none; margin-top: 1rem; width: 100%; background: rgba(255,255,255,0.1); border-radius: 0.5rem; overflow: hidden;">
+                <div id="progress-bar" style="height: 10px; width: 0%; background: var(--accent); transition: width 0.2s;"></div>
+            </div>
+            <p id="progress-text" style="display: none; text-align: center; margin-top: 0.5rem; font-size: 0.8rem; color: #cbd5e1;"></p>
+        </form>
+
+        <div id="result-container">
+            <h3 style="margin-bottom: 0.5rem;">Resultado:</h3>
+            <p id="stats" style="font-size: 0.9rem; color: #cbd5e1;"></p>
+            <a id="download-link" download="upscaled.png">
+                <img id="result-img" alt="Upscaled result" style="display: none;">
+                <video id="result-video" controls autoplay loop style="max-width: 100%; border-radius: 0.5rem; display: none; margin-top: 1rem;"></video>
+            </a>
+            <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #94a3b8;">Clic en la imagen o video para descargar</p>
+        </div>
+    </div>
+
+    <script>
+        const tabImage = document.getElementById('tab-image');
+        const tabVideo = document.getElementById('tab-video');
+        const fileInput = document.getElementById('image');
+        const fileLabel = document.getElementById('file-label');
+        const submitSpan = document.querySelector('#submit-btn span');
+        let currentMode = 'upscale';
+        let currentType = 'image';
+
+        document.getElementById('mode-upscale').addEventListener('click', () => {
+            currentMode = 'upscale';
+            document.getElementById('mode-upscale').classList.add('active');
+            document.getElementById('mode-restore').classList.remove('active');
+            document.getElementById('upscale-controls').style.display = 'block';
+            document.getElementById('restore-controls').style.display = 'none';
+        });
+
+        document.getElementById('mode-restore').addEventListener('click', () => {
+            currentMode = 'restore';
+            document.getElementById('mode-restore').classList.add('active');
+            document.getElementById('mode-upscale').classList.remove('active');
+            document.getElementById('upscale-controls').style.display = 'none';
+            document.getElementById('restore-controls').style.display = 'block';
+        });
+
+        document.getElementById('type-image').addEventListener('click', () => {
+            currentType = 'image';
+            document.getElementById('type-image').classList.add('active');
+            document.getElementById('type-video').classList.remove('active');
+            fileInput.accept = "image/jpeg, image/png, image/webp";
+            fileLabel.innerText = "Selecciona una Imagen";
+            document.getElementById('fps-group').style.display = 'none';
+        });
+
+        document.getElementById('type-video').addEventListener('click', () => {
+            currentType = 'video';
+            document.getElementById('type-video').classList.add('active');
+            document.getElementById('type-image').classList.remove('active');
+            fileInput.accept = "video/mp4, video/webm, video/x-matroska";
+            fileLabel.innerText = "Selecciona un Video";
+            document.getElementById('fps-group').style.display = 'flex';
+        });
+
+        const restoreFilterSelect = document.getElementById('restoreFilter');
+        restoreFilterSelect.addEventListener('change', (e) => {
+            const val = e.target.value;
+            document.getElementById('bilateral-tol-group').style.display = val === 'bilateral' ? 'block' : 'none';
+            document.getElementById('deblock-int-group').style.display = val === 'deblock' ? 'block' : 'none';
+        });
+
+        const bilTolInput = document.getElementById('bilateralTol');
+        const bilTolVal = document.getElementById('bilateralTolVal');
+        bilTolInput.addEventListener('input', () => bilTolVal.innerText = bilTolInput.value);
+
+        const deblockIntInput = document.getElementById('deblockInt');
+        const deblockIntVal = document.getElementById('deblockIntVal');
+        deblockIntInput.addEventListener('input', () => deblockIntVal.innerText = deblockIntInput.value);
+
+        // Detect FPS using backend
+        const detectFps = async (file) => {
+            if (!file || currentType !== 'video') return;
+            const fpsInput = document.getElementById('fps');
+            fpsInput.disabled = true;
+            fpsInput.placeholder = "Detectando...";
+            fpsInput.value = "";
+            
+            try {
+                // Leer solo el primer megabyte para extraer la cabecera
+                const chunk = file.slice(0, 1024 * 1024);
+                const formData = new FormData();
+                formData.append('video', chunk, file.name);
+                
+                const response = await fetch('/api/fps', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const fps = await response.text();
+                    fpsInput.value = fps;
+                } else {
+                    fpsInput.value = "30";
+                }
+            } catch (err) {
+                fpsInput.value = "30";
+            } finally {
+                fpsInput.disabled = false;
+                fpsInput.placeholder = "";
+                if (!fpsInput.value) fpsInput.value = "30";
+            }
+        };
+
+        const scaleInput = document.getElementById('scale');
+        const vramInput = document.getElementById('vramLimit');
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                fileLabel.innerText = file.name;
+                detectFps(file);
+            } else {
+                fileLabel.innerText = currentType === 'image' ? 'Selecciona una Imagen' : 'Selecciona un Video';
+            }
+        });
+
+        const seamInput = document.getElementById('seamRatio');
+        const seamVal = document.getElementById('seamRatio-val');
+        seamInput.addEventListener('input', () => seamVal.innerText = seamInput.value);
+
+        const contrastInput = document.getElementById('contrastThresh');
+        const contrastVal = document.getElementById('contrastThresh-val');
+        contrastInput.addEventListener('input', () => contrastVal.innerText = contrastInput.value);
+
+        const blendInput = document.getElementById('blendMax');
+        const blendVal = document.getElementById('blendMax-val');
+        blendInput.addEventListener('input', () => blendVal.innerText = blendInput.value);
+
+        document.getElementById('upscale-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const file = document.getElementById('image').files[0];
+            if (!file) {
+                alert('Por favor selecciona un archivo.');
+                return;
+            }
+
+            if (currentType === 'image' && !file.type.startsWith('image/')) {
+                alert('El archivo seleccionado no es una imagen válida. Por favor, selecciona una imagen (JPG, PNG, WebP) o cambia a la pestaña de Video.');
+                return;
+            }
+            
+            if (currentType === 'video' && !file.type.startsWith('video/')) {
+                alert('El archivo seleccionado no es un video válido. Por favor, selecciona un video o cambia a la pestaña de Imagen.');
+                return;
+            }
+
+            const btn = document.getElementById('submit-btn');
+            const loader = document.getElementById('loader');
+            const span = btn.querySelector('span');
+            
+            btn.disabled = true;
+            loader.style.display = 'block';
+            span.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('operation_mode', currentMode);
+            formData.append('restore_filter', document.getElementById('restoreFilter').value);
+            formData.append('bilateral_tol', document.getElementById('bilateralTol').value);
+            formData.append('deblock_int', document.getElementById('deblockInt').value);
+            formData.append('scale', scaleInput.value);
+            formData.append('vram_limit_mb', vramInput.value);
+            formData.append('seam_ratio', seamInput.value);
+            formData.append('contrast_thresh', document.getElementById('contrastThresh').value);
+            formData.append('blend_max', document.getElementById('blendMax').value);
+            formData.append('refine', document.getElementById('refine').checked);
+            formData.append('algorithm', document.getElementById('algorithm').value);
+            formData.append('padding', document.getElementById('padding').value);
+            formData.append('debug', document.getElementById('debugMode').checked);
+            formData.append('fps', document.getElementById('fps').value);
+            
+            formData.append('operation_mode', currentMode);
+            formData.append('restore_filter', document.getElementById('restoreFilter').value);
+            formData.append('bilateral_tol', document.getElementById('bilateralTol').value);
+            formData.append('deblock_int', document.getElementById('deblockInt').value);
+
+            document.getElementById('progress-container').style.display = 'block';
+            document.getElementById('progress-text').style.display = 'block';
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-text').innerText = 'Iniciando...';
+            
+            const progressInterval = setInterval(async () => {
+                try {
+                    const res = await fetch('/api/progress');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.total > 0) {
+                            const pct = (data.current / data.total) * 100;
+                            document.getElementById('progress-bar').style.width = pct + '%';
+                            if (currentType === 'video') {
+                                document.getElementById('progress-text').innerText = `Procesando frame ${data.current} de ${data.total} (${pct.toFixed(1)}%)`;
+                            } else {
+                                document.getElementById('progress-text').innerText = `Procesando tile ${data.current} de ${data.total} (${pct.toFixed(1)}%)`;
+                            }
+                        } else {
+                            if (currentType === 'video') {
+                                document.getElementById('progress-text').innerText = 'Extrayendo frames o ensamblando video...';
+                            } else {
+                                document.getElementById('progress-text').innerText = 'Preparando imagen...';
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }, 1000);
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch('/api/upscale', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) throw new Error("Error en el procesado");
+                
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                
+                const endTime = performance.now();
+                const timeStr = ((endTime - startTime) / 1000).toFixed(2);
+                
+                document.getElementById('result-container').style.display = 'block';
+                
+                const isVideo = blob.type.startsWith('video/');
+                if (isVideo) {
+                    document.getElementById('result-img').style.display = 'none';
+                    const vid = document.getElementById('result-video');
+                    vid.src = url;
+                    vid.style.display = 'block';
+                    document.getElementById('download-link').download = 'upscaled.mp4';
+                } else {
+                    document.getElementById('result-video').style.display = 'none';
+                    const img = document.getElementById('result-img');
+                    img.src = url;
+                    img.style.display = 'block';
+                    document.getElementById('download-link').download = 'upscaled.png';
+                }
+                
+                document.getElementById('download-link').href = url;
+                document.getElementById('stats').innerText = `Procesado en ${timeStr}s.`;
+            } catch (err) {
+                alert(err.message);
+            } finally {
+                clearInterval(progressInterval);
+                document.getElementById('progress-container').style.display = 'none';
+                document.getElementById('progress-text').style.display = 'none';
+                btn.disabled = false;
+                loader.style.display = 'none';
+                span.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
