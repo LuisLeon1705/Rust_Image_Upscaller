@@ -1,5 +1,7 @@
 mod gpu_compute;
+mod staircase_fix;
 mod upscaler;
+mod vectorize;
 mod video;
 
 use axum::{
@@ -24,8 +26,21 @@ pub struct AppState {
     pub total_frames: Arc<AtomicUsize>,
 }
 
+/// Caps the CPU-bound pixel-processing thread pool (tile extraction, final
+/// f32->u8 conversion — see upscaler.rs) at 12 threads regardless of how
+/// many logical cores the machine has, so heavy jobs don't push every core
+/// to 100% and drive thermals up. This only bounds thread COUNT; the OS
+/// scheduler still decides actual per-core utilization, so it's a proxy for
+/// "leave some headroom," not a literal duty-cycle limiter.
+const CPU_WORKER_THREADS: usize = 12;
+
 #[tokio::main]
 async fn main() {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(CPU_WORKER_THREADS)
+        .build_global()
+        .expect("failed to initialize the CPU worker thread pool");
+
     let upscaler = AdaptiveUpscaler::new().await;
     if upscaler.is_none() {
         println!("WARNING: Failed to initialize GPU upscaler. Application will crash if used.");
@@ -68,10 +83,16 @@ async fn handle_upscale(
     let mut fps: f32 = 30.0;
     let mut algorithm = 1; // 1 = Lanczos3, 0 = Bilinear
     let mut padding = 16;
-    let mut operation_mode = 0; // 0 = upscale, 1 = restore
+    let mut operation_mode = 0; // 0 = upscale, 1 = restore, 2 = vectorize (SVG)
     let mut restore_filter = 0; // 0 = bilateral, 1 = median, 2 = deblock
     let mut bilateral_tol = 0.1;
+    let mut bilateral_radius: u32 = 4;
     let mut deblock_int = 0.5;
+    let mut vectorize_preset = "poster".to_string();
+    let mut vectorize_filter_speckle: usize = 4;
+    let mut vectorize_color_precision: i32 = 6;
+    let mut use_precomputed_refinement = false;
+    let mut smooth_staircase = true;
 
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();
@@ -112,7 +133,25 @@ async fn handle_upscale(
             padding = text.parse().unwrap_or(16);
         } else if name == "operation_mode" {
             let text = field.text().await.unwrap();
-            operation_mode = if text == "restore" { 1 } else { 0 };
+            operation_mode = match text.as_str() {
+                "restore" => 1,
+                "vectorize" => 2,
+                _ => 0,
+            };
+        } else if name == "vectorize_preset" {
+            vectorize_preset = field.text().await.unwrap();
+        } else if name == "vectorize_filter_speckle" {
+            let text = field.text().await.unwrap();
+            vectorize_filter_speckle = text.parse().unwrap_or(4);
+        } else if name == "vectorize_color_precision" {
+            let text = field.text().await.unwrap();
+            vectorize_color_precision = text.parse().unwrap_or(6);
+        } else if name == "use_precomputed_refinement" {
+            let text = field.text().await.unwrap();
+            use_precomputed_refinement = text == "true";
+        } else if name == "smooth_staircase" {
+            let text = field.text().await.unwrap();
+            smooth_staircase = text == "true";
         } else if name == "restore_filter" {
             let text = field.text().await.unwrap();
             restore_filter = match text.as_str() {
@@ -123,6 +162,9 @@ async fn handle_upscale(
         } else if name == "bilateral_tol" {
             let text = field.text().await.unwrap();
             bilateral_tol = text.parse().unwrap_or(0.1);
+        } else if name == "bilateral_radius" {
+            let text = field.text().await.unwrap();
+            bilateral_radius = text.parse().unwrap_or(4);
         } else if name == "deblock_int" {
             let text = field.text().await.unwrap();
             deblock_int = text.parse().unwrap_or(0.5);
@@ -141,6 +183,27 @@ async fn handle_upscale(
     state.current_frame.store(0, Ordering::Relaxed);
     state.total_frames.store(0, Ordering::Relaxed);
 
+    if operation_mode == 2 {
+        // Vectorize (SVG): no GPU tiling pipeline at all — vtracer works on
+        // the whole image in one pass, so none of the VRAM/tiling logic
+        // below applies.
+        let img = image::load_from_memory(&image_data).map_err(|_| StatusCode::BAD_REQUEST)?;
+        let svg = vectorize::image_to_svg(
+            &img,
+            &vectorize_preset,
+            vectorize_filter_speckle,
+            vectorize_color_precision,
+        )
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+        let mut response = Response::new(Body::from(svg));
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("image/svg+xml"),
+        );
+        return Ok(response);
+    }
+
     let upscaler_ref = state.upscaler.as_ref().as_ref().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let is_video = filename.to_lowercase().ends_with(".mp4") 
@@ -150,11 +213,11 @@ async fn handle_upscale(
         || filename.to_lowercase().ends_with(".mkv");
 
     let (bytes, content_type) = if is_video {
-        let video_bytes = video::process_video(&image_data, scale, fps, vram_limit_mb, seam_ratio, contrast_thresh, blend_max, refine, &filename, debug, state.clone(), algorithm, padding, operation_mode, restore_filter, bilateral_tol, deblock_int).await?;
+        let video_bytes = video::process_video(&image_data, scale, fps, vram_limit_mb, seam_ratio, contrast_thresh, blend_max, refine, &filename, debug, state.clone(), algorithm, padding, operation_mode, restore_filter, bilateral_tol, deblock_int, use_precomputed_refinement, bilateral_radius, smooth_staircase).await?;
         (video_bytes, "video/mp4")
     } else {
         let img = image::load_from_memory(&image_data).map_err(|_| StatusCode::BAD_REQUEST)?;
-        let upscaled_img = upscaler_ref.upscale(&img, scale, vram_limit_mb, seam_ratio, contrast_thresh, blend_max, refine, &filename, debug, false, Some((state.current_frame.clone(), state.total_frames.clone())), algorithm, padding, operation_mode, restore_filter, bilateral_tol, deblock_int);
+        let upscaled_img = upscaler_ref.upscale(&img, scale, vram_limit_mb, seam_ratio, contrast_thresh, blend_max, refine, &filename, debug, false, Some((state.current_frame.clone(), state.total_frames.clone())), algorithm, padding, operation_mode, restore_filter, bilateral_tol, deblock_int, use_precomputed_refinement, bilateral_radius, smooth_staircase);
         
         let mut b: Vec<u8> = Vec::new();
         upscaled_img.write_to(&mut Cursor::new(&mut b), ImageFormat::Png)

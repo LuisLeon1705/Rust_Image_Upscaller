@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use tokio::sync::Semaphore;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn process_video(
     video_data: &[u8],
     scale: f32,
@@ -25,6 +26,9 @@ pub async fn process_video(
     restore_filter: u32,
     bilateral_tol: f32,
     deblock_int: f32,
+    use_precomputed_refinement: bool,
+    bilateral_radius: u32,
+    smooth_staircase: bool,
 ) -> Result<Vec<u8>, StatusCode> {
     let temp_dir = tempfile::tempdir().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let temp_dir_path = temp_dir.path();
@@ -129,18 +133,21 @@ pub async fn process_video(
         let restore_filter_c = restore_filter;
         let bilateral_tol_c = bilateral_tol;
         let deblock_int_c = deblock_int;
-        
+        let use_precomputed_refinement_c = use_precomputed_refinement;
+        let bilateral_radius_c = bilateral_radius;
+        let smooth_staircase_c = smooth_staircase;
+
         let out_path = out_frames_dir.join(path.file_name().unwrap());
 
         join_set.spawn_blocking(move || {
             let _permit = permit;
-            
+
             let current = state_clone.current_frame.fetch_add(1, Ordering::Relaxed) + 1;
             println!("Processing frame {}/{}...", current, total_frames);
             let img = image::open(&path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            
+
             let upscaler_ref = state_clone.upscaler.as_ref().as_ref().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
-            let upscaled_img = upscaler_ref.upscale(&img, scale_c, vram_limit_mb_c, seam_ratio_c, contrast_thresh_c, blend_max_c, refine_c, &filename_c, debug_c, true, None, algorithm_c, padding_c, operation_mode_c, restore_filter_c, bilateral_tol_c, deblock_int_c);
+            let upscaled_img = upscaler_ref.upscale(&img, scale_c, vram_limit_mb_c, seam_ratio_c, contrast_thresh_c, blend_max_c, refine_c, &filename_c, debug_c, true, None, algorithm_c, padding_c, operation_mode_c, restore_filter_c, bilateral_tol_c, deblock_int_c, use_precomputed_refinement_c, bilateral_radius_c, smooth_staircase_c);
             
             upscaled_img.save(&out_path).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 

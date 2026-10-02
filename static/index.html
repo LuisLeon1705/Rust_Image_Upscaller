@@ -7,268 +7,557 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
+            --bg-color: #0b1220;
+            --panel-bg: #161f32;
+            --card-bg: rgba(255,255,255,0.035);
+            --card-border: rgba(255,255,255,0.08);
             --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
             --accent: #3b82f6;
             --accent-hover: #2563eb;
             --accent-gradient: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            --field-bg: rgba(255,255,255,0.05);
+            --field-border: rgba(255,255,255,0.12);
+            --radius: 0.7rem;
         }
+        * { box-sizing: border-box; }
         body {
             margin: 0;
             font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
+            background:
+                radial-gradient(circle at 15% 0%, rgba(59,130,246,0.12), transparent 45%),
+                radial-gradient(circle at 85% 15%, rgba(139,92,246,0.10), transparent 40%),
+                var(--bg-color);
             color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            padding: 2.5rem 1rem;
         }
         .container {
             background: var(--panel-bg);
             padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            max-width: 600px;
+            border-radius: 1.25rem;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.06);
+            max-width: 720px;
             width: 100%;
+            margin: 0 auto;
         }
+        header { text-align: center; margin-bottom: 1.75rem; }
         h1 {
-            text-align: center;
+            display: inline-block;
             background: var(--accent-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 2rem;
+            margin: 0;
+            font-size: 1.9rem;
         }
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin: 0.4rem 0 0;
+        }
+
+        /* Sections ("cards") group related controls so it's obvious where
+           one set of options ends and the next begins. */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius);
+            padding: 1.25rem 1.25rem 0.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .card-header {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 0 0 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        details.card { padding-top: 0.9rem; }
+        details.card summary.card-header {
+            cursor: pointer;
+            margin-bottom: 0;
+            list-style: none;
+            user-select: none;
+        }
+        details.card summary::-webkit-details-marker { display: none; }
+        details.card summary::after {
+            content: '▾';
+            margin-left: auto;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+        details.card[open] summary::after { transform: rotate(180deg); }
+        details.card[open] summary.card-header { margin-bottom: 1rem; }
+        details.card > *:not(summary) { margin-top: 0; }
+
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
             display: flex;
             flex-direction: column;
         }
+        .form-group:last-child { margin-bottom: 1rem; }
         label {
             margin-bottom: 0.5rem;
             font-weight: 600;
-            font-size: 0.9rem;
-            color: #cbd5e1;
+            font-size: 0.88rem;
+            color: #e2e8f0;
         }
-        input[type="file"], input[type="range"] {
-            padding: 0.5rem;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+        .field-hint {
+            color: var(--text-dim);
+            margin-top: 0.4rem;
+            font-size: 0.78rem;
+            line-height: 1.4;
+            display: block;
+        }
+
+        input[type="file"],
+        input[type="number"],
+        select {
+            padding: 0.65rem 0.75rem;
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
             border-radius: 0.5rem;
             color: white;
-            transition: border-color 0.3s ease;
+            font-family: inherit;
+            font-size: 0.92rem;
+            transition: border-color 0.2s ease, background 0.2s ease;
+            width: 100%;
         }
-        input[type="file"]:hover, input[type="range"]:hover {
+        select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--text-muted) 50%), linear-gradient(135deg, var(--text-muted) 50%, transparent 50%); background-position: calc(100% - 20px) calc(1.1em), calc(100% - 15px) calc(1.1em); background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+        input[type="file"]:hover,
+        input[type="number"]:hover,
+        select:hover {
+            border-color: rgba(255,255,255,0.25);
+        }
+        input[type="file"]:focus,
+        input[type="number"]:focus,
+        select:focus,
+        input[type="range"]:focus-visible {
+            outline: none;
             border-color: var(--accent);
         }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 999px;
+            background: var(--field-bg);
+            border: 1px solid var(--field-border);
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            transition: transform 0.15s;
+            border: 2px solid #fff;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: 2px solid #fff;
+        }
+
         .slider-wrapper {
             display: flex;
             align-items: center;
             gap: 1rem;
         }
-        .slider-wrapper input {
-            flex: 1;
+        .slider-wrapper input { flex: 1; }
+        .slider-wrapper span {
+            min-width: 2.6em;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-muted);
+            font-size: 0.85rem;
         }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            width: 1.15rem;
+            height: 1.15rem;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
         button {
             width: 100%;
             padding: 1rem;
             border: none;
-            border-radius: 0.5rem;
+            border-radius: 0.6rem;
             background: var(--accent-gradient);
             color: white;
-            font-size: 1.1rem;
-            font-weight: 600;
+            font-size: 1.05rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
         }
-        button:hover {
+        button:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
         }
         button:disabled {
-            background: #475569;
+            background: #334155;
+            color: var(--text-muted);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
+
         #result-container {
-            margin-top: 2rem;
+            margin-top: 1.5rem;
             text-align: center;
             display: none;
+        }
+        #result-container h3 {
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin: 0 0 0.6rem;
         }
         #result-img {
             max-width: 100%;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            margin-top: 1rem;
+            border-radius: 0.6rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
+        #download-link { display: inline-block; cursor: pointer; }
         .loader {
             display: none;
-            border: 3px solid rgba(255,255,255,0.1);
-            border-top: 3px solid var(--accent);
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top: 3px solid white;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
+            width: 18px;
+            height: 18px;
+            animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        #progress-container {
+            display: none;
+            margin-top: 1.1rem;
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border-radius: 999px;
+            overflow: hidden;
+            height: 8px;
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent-gradient);
+            transition: width 0.2s;
+        }
+        #progress-text {
+            display: none;
+            text-align: center;
+            margin-top: 0.6rem;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
         .tabs {
             display: flex;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 1rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 1rem;
+            padding: 0.3rem;
         }
         .tab {
             flex: 1;
+            min-width: max-content;
             text-align: center;
-            padding: 1rem;
+            padding: 0.6rem 1rem;
             cursor: pointer;
             font-weight: 600;
-            color: #94a3b8;
-            transition: color 0.3s, border-bottom 0.3s;
-            border-bottom: 2px solid transparent;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            transition: color 0.2s, background 0.2s;
+            border-radius: 999px;
         }
+        .tab:hover { color: #e2e8f0; }
         .tab.active {
-            color: var(--accent);
-            border-bottom: 2px solid var(--accent);
+            color: white;
+            background: var(--accent-gradient);
+            box-shadow: 0 4px 12px rgba(59,130,246,0.35);
+        }
+        .tabs-secondary {
+            background: transparent;
+            padding: 0;
+            margin-bottom: 1.25rem;
+            border: 1px solid var(--field-border);
+        }
+        .tabs-secondary .tab { padding: 0.5rem 1rem; font-size: 0.85rem; }
+
+        @media (max-width: 480px) {
+            .container { padding: 1.25rem; border-radius: 1rem; }
+            h1 { font-size: 1.5rem; }
+            .card { padding: 1rem 1rem 0.1rem; }
+            #mode-tabs { flex-direction: column; }
+            #mode-tabs .tab { width: 100%; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Adaptive Upscaler</h1>
-        
+        <header>
+            <h1>Adaptive Upscaler</h1>
+            <p class="subtitle">Escalado, restauración y vectorización de imágenes aceleradas por GPU</p>
+        </header>
+
         <div class="tabs" id="mode-tabs">
             <div class="tab active" id="mode-upscale" data-mode="upscale">Escalar Resolución</div>
             <div class="tab" id="mode-restore" data-mode="restore">Restaurar Artefactos</div>
-        </div>
-
-        <div class="tabs" id="type-tabs" style="margin-top: -1rem;">
-            <div class="tab active" id="type-image" data-type="image">Imagen</div>
-            <div class="tab" id="type-video" data-type="video">Video</div>
+            <div class="tab" id="mode-vectorize" data-mode="vectorize">Vectorizar (SVG)</div>
         </div>
 
         <form id="upscale-form">
-            <div class="form-group">
-                <label id="file-label" for="image">Selecciona una Imagen</label>
-                <input type="file" id="image" accept="image/jpeg, image/png, image/webp" required>
-            </div>
-            
-            <div id="restore-controls" style="display: none;">
+            <section class="card">
+                <div class="card-header">📁 Archivo</div>
+
+                <div class="tabs tabs-secondary" id="type-tabs">
+                    <div class="tab active" id="type-image" data-type="image">Imagen</div>
+                    <div class="tab" id="type-video" data-type="video">Video</div>
+                </div>
+
+                <div class="form-group">
+                    <label id="file-label" for="image">Selecciona una Imagen</label>
+                    <input type="file" id="image" accept="image/jpeg, image/png, image/webp" required>
+                </div>
+
+                <div class="form-group" id="fps-group" style="display: none;">
+                    <label for="fps">FPS del Video</label>
+                    <input type="number" id="fps" min="1" max="144" step="1" value="30">
+                    <small class="field-hint">
+                        Requerido para videos. Extrae y ensambla forzosamente a estos FPS (soluciona bugs de 1000fps en WebM).
+                    </small>
+                </div>
+            </section>
+
+            <section class="card" id="restore-controls" style="display: none;">
+                <div class="card-header">🛠️ Restauración</div>
+
                 <div class="form-group">
                     <label for="restoreFilter">Filtro de Restauración</label>
-                    <select id="restoreFilter" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
+                    <select id="restoreFilter">
                         <option value="bilateral">Filtro Bilateral (Suavizado conservando bordes)</option>
                         <option value="median">Filtro de Mediana (Ruido sal y pimienta)</option>
                         <option value="deblock">Filtro Deblocking (Cuadros JPEG/MP4)</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group" id="bilateral-tol-group">
                     <label for="bilateralTol">Tolerancia de Color (Bilateral)</label>
-                    <input type="range" id="bilateralTol" min="0.01" max="0.5" step="0.01" value="0.1" style="width:100%;">
-                    <small style="color: #94a3b8;" id="bilateralTolVal">0.1</small>
+                    <div class="slider-wrapper">
+                        <input type="range" id="bilateralTol" min="0.01" max="0.5" step="0.01" value="0.1">
+                        <span id="bilateralTolVal">0.1</span>
+                    </div>
                 </div>
-                
+
+                <div class="form-group" id="bilateral-radius-group">
+                    <label for="bilateralRadius">Radio del Filtro Bilateral (px)</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="bilateralRadius" min="1" max="10" step="1" value="4">
+                        <span id="bilateralRadiusVal">4</span>
+                    </div>
+                    <small class="field-hint">
+                        Qué tan grande es el conjunto de píxeles que el filtro considera al suavizar. Un radio chico puede convertir bordes diagonales suaves en escalones ("dientes de sierra"); uno más grande los suaviza, a costa de perder algo de detalle muy fino (líneas de cabello, texturas chicas). Subilo si ves escalonado en diagonales, bajalo si notás que se pierde detalle fino.
+                    </small>
+                </div>
+
                 <div class="form-group" id="deblock-int-group" style="display: none;">
                     <label for="deblockInt">Intensidad del Deblocking</label>
-                    <input type="range" id="deblockInt" min="0.0" max="1.0" step="0.05" value="0.5" style="width:100%;">
-                    <small style="color: #94a3b8;" id="deblockIntVal">0.5</small>
+                    <div class="slider-wrapper">
+                        <input type="range" id="deblockInt" min="0.0" max="1.0" step="0.05" value="0.5">
+                        <span id="deblockIntVal">0.5</span>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div id="upscale-controls">
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <section class="card" id="refine-controls">
+                <div class="card-header">✨ Postprocesado</div>
+                <div class="form-group checkbox-group">
+                    <label>
                         <input type="checkbox" id="refine">
                         Refinar Bordes (Post-Procesado Anti-Aliasing FXAA)
                     </label>
+                    <small class="field-hint">
+                        Suaviza bordes escalonados ("dientes de sierra") después del proceso principal. Especialmente útil en Restaurar Artefactos: filtros como el Bilateral pueden endurecer degradados diagonales suaves en líneas finas — activar esto ayuda a corregirlo.
+                    </small>
+                </div>
+            </section>
+
+            <section class="card" id="vectorize-controls" style="display: none;">
+                <div class="card-header">✏️ Vectorización</div>
+
+                <div class="form-group">
+                    <label for="vectorizePreset">Preajuste de Vectorización</label>
+                    <select id="vectorizePreset">
+                        <option value="poster" selected>Poster / Color Plano (recomendado para anime e ilustración)</option>
+                        <option value="photo">Foto (más detalle, archivos más pesados)</option>
+                        <option value="bw">Blanco y Negro</option>
+                    </select>
+                    <small class="field-hint">
+                        Convierte la imagen a SVG (gráficos vectoriales) en vez de un raster escalado. Funciona mejor con colores planos y líneas limpias — el caso típico de ilustración/anime — donde puede verse nítido a cualquier tamaño y pesar mucho menos que un PNG gigante.
+                    </small>
                 </div>
 
-            <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                    <input type="checkbox" id="debugMode">
-                    Modo Debug (Guardar Recortes individualmente en disco)
-                </label>
-            </div>
-            
-            <div class="form-group">
-                <label for="algorithm">Algoritmo de Interpolación</label>
-                <select id="algorithm" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
-                    <option value="lanczos3">Lanczos3 (Alta Calidad)</option>
-                    <option value="bilinear">Bilineal (Rápido)</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="padding">Padding de Tiles (Píxeles extras por borde)</label>
-                <input type="number" id="padding" min="0" max="64" step="1" value="16" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
-            </div>
-            
-            <div class="form-group" id="scale-group">
-                <label for="scale">Multiplicador de Escalado (ej. 1.5, 4.0, 0.5 para downscale)</label>
-                <input type="number" id="scale" min="0.1" step="0.1" value="4.0" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
-            </div>
-            </div> <!-- end upscale-controls -->
-
-            <div class="form-group" id="fps-group" style="display: none; flex-direction: column;">
-                <label for="fps">FPS del Video</label>
-                <input type="number" id="fps" min="1" max="144" step="1" value="30" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
-                <small style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.8rem;">
-                    Requerido para videos. Extrae y ensambla forzosamente a estos FPS (soluciona bugs de 1000fps en WebM).
-                </small>
-            </div>
-
-            <div class="form-group">
-                <label for="vramLimit">Límite de VRAM de la GPU (MB)</label>
-                <input type="number" id="vramLimit" min="512" max="32768" step="128" value="1024" style="padding: 0.5rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; color: white;">
-                <small style="color: #94a3b8; margin-top: 0.5rem; font-size: 0.8rem;">
-                    Sube este valor al máximo que permita tu tarjeta gráfica. El sistema de Inteligencia Artificial detectará automáticamente el tamaño de los frames y usará toda esta memoria para procesar la mayor cantidad de cuadros en paralelo.
-                </small>
-            </div>
-
-            <div class="form-group">
-                <label for="seamRatio">Proporción de Difuminado de Bordes</label>
-                <div class="slider-wrapper">
-                    <input type="range" id="seamRatio" min="0" max="0.2" step="0.01" value="0.05">
-                    <span id="seamRatio-val">0.05</span>
+                <div class="form-group">
+                    <label for="vectorizeFilterSpeckle">Filtrar Manchas Pequeñas (px²)</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="vectorizeFilterSpeckle" min="0" max="32" step="1" value="4">
+                        <span id="vectorizeFilterSpeckle-val">4</span>
+                    </div>
+                    <small class="field-hint">
+                        Descarta parches de color más chicos que este tamaño. Subilo si el SVG sale con ruido/puntitos sueltos.
+                    </small>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="contrastThresh">Sensibilidad de Contraste (Shader)</label>
-                <div class="slider-wrapper">
-                    <input type="range" id="contrastThresh" min="0.05" max="0.5" step="0.01" value="0.25">
-                    <span id="contrastThresh-val">0.25</span>
+                <div class="form-group">
+                    <label for="vectorizeColorPrecision">Precisión de Color</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="vectorizeColorPrecision" min="1" max="8" step="1" value="6">
+                        <span id="vectorizeColorPrecision-val">6</span>
+                    </div>
+                    <small class="field-hint">
+                        Cuántos bits por canal de color se conservan al agrupar colores (8 = fidelidad total, sin pérdida). Más alto = más colores distintos y más detalle, pero un SVG más pesado — combinalo con más filtro de manchas si sube mucho.
+                    </small>
                 </div>
-            </div>
+            </section>
 
-            <div class="form-group">
-                <label for="blendMax">Mezcla Máxima de Refinamiento</label>
-                <div class="slider-wrapper">
-                    <input type="range" id="blendMax" min="0" max="1.0" step="0.05" value="0.5">
-                    <span id="blendMax-val">0.5</span>
+            <section class="card" id="upscale-controls">
+                <div class="card-header">🔍 Escalado</div>
+
+                <div class="form-group" id="scale-group">
+                    <label for="scale">Multiplicador de Escalado (ej. 1.5, 4.0, 0.5 para downscale)</label>
+                    <input type="number" id="scale" min="0.1" step="0.1" value="4.0">
                 </div>
-            </div>
+
+                <div class="form-group">
+                    <label for="algorithm">Algoritmo de Interpolación</label>
+                    <select id="algorithm">
+                        <option value="lanczos3">Lanczos3 (Alta Calidad)</option>
+                        <option value="bilinear">Bilineal (Rápido)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="padding">Padding de Tiles (Píxeles extras por borde)</label>
+                    <input type="number" id="padding" min="0" max="64" step="1" value="16">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="precomputedRefinement">
+                        Optimizar Refinamiento Adaptativo (Experimental)
+                    </label>
+                    <small class="field-hint">
+                        Calcula el análisis de contraste una sola vez por píxel de entrada en vez de repetirlo por cada píxel de salida (mucho más rápido a escalas altas). Es una aproximación: en pruebas, la diferencia visual es mínima (~0.2% de píxeles, concentrados justo en los bordes) sobre arte de colores planos, pero puede notarse más en bordes muy finos. Desactivalo si ves diferencias que no te convencen.
+                    </small>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="smoothStaircase" checked>
+                        Suavizado Geométrico de Escalonado
+                    </label>
+                    <small class="field-hint">
+                        Corrige el "escalonado" en bordes delgados y de alto contraste (líneas de cabello, colmillos, rayas finas) que Lanczos y el gridding no pueden arreglar por sí solos, porque reproducen fielmente el jitter subpíxel del original. Reconstruye localmente un borde suave y recolorea solo los píxeles cercanos a él, preservando el degradado de color real. Ligero costo extra de procesamiento en CPU tras el escalado.
+                    </small>
+                </div>
+            </section>
+
+            <details class="card" id="raster-only-controls">
+                <summary class="card-header">⚙️ Configuración Avanzada</summary>
+
+                <div class="form-group">
+                    <label for="vramLimit">Límite de VRAM de la GPU (MB)</label>
+                    <input type="number" id="vramLimit" min="512" max="32768" step="128" value="1024">
+                    <small class="field-hint">
+                        Sube este valor al máximo que permita tu tarjeta gráfica. El sistema detectará automáticamente el tamaño de los frames y usará toda esta memoria para procesar la mayor cantidad de cuadros en paralelo.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label for="seamRatio">Proporción de Difuminado de Bordes</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="seamRatio" min="0" max="0.2" step="0.01" value="0.05">
+                        <span id="seamRatio-val">0.05</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="contrastThresh">Sensibilidad de Contraste (Shader)</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="contrastThresh" min="0.05" max="0.5" step="0.01" value="0.25">
+                        <span id="contrastThresh-val">0.25</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="blendMax">Mezcla Máxima de Refinamiento</label>
+                    <div class="slider-wrapper">
+                        <input type="range" id="blendMax" min="0" max="1.0" step="0.05" value="0.5">
+                        <span id="blendMax-val">0.5</span>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label>
+                        <input type="checkbox" id="debugMode">
+                        Modo Debug (Guardar Recortes individualmente en disco)
+                    </label>
+                </div>
+            </details>
 
             <button type="submit" id="submit-btn">
                 <span>Escalar Imagen</span>
                 <div class="loader" id="loader"></div>
             </button>
-            <div id="progress-container" style="display: none; margin-top: 1rem; width: 100%; background: rgba(255,255,255,0.1); border-radius: 0.5rem; overflow: hidden;">
-                <div id="progress-bar" style="height: 10px; width: 0%; background: var(--accent); transition: width 0.2s;"></div>
+            <div id="progress-container">
+                <div id="progress-bar"></div>
             </div>
-            <p id="progress-text" style="display: none; text-align: center; margin-top: 0.5rem; font-size: 0.8rem; color: #cbd5e1;"></p>
+            <p id="progress-text"></p>
         </form>
 
-        <div id="result-container">
-            <h3 style="margin-bottom: 0.5rem;">Resultado:</h3>
-            <p id="stats" style="font-size: 0.9rem; color: #cbd5e1;"></p>
+        <div id="result-container" class="card">
+            <h3>Resultado</h3>
+            <p id="stats" style="color: var(--text-muted); font-size: 0.9rem;"></p>
             <a id="download-link" download="upscaled.png">
                 <img id="result-img" alt="Upscaled result" style="display: none;">
-                <video id="result-video" controls autoplay loop style="max-width: 100%; border-radius: 0.5rem; display: none; margin-top: 1rem;"></video>
+                <video id="result-video" controls autoplay loop style="max-width: 100%; border-radius: 0.5rem; display: none;"></video>
             </a>
-            <p style="font-size: 0.8rem; margin-top: 0.5rem; color: #94a3b8;">Clic en la imagen o video para descargar</p>
+            <p class="field-hint" style="text-align:center;">Clic en la imagen o video para descargar</p>
         </div>
     </div>
 
@@ -281,21 +570,40 @@
         let currentMode = 'upscale';
         let currentType = 'image';
 
-        document.getElementById('mode-upscale').addEventListener('click', () => {
-            currentMode = 'upscale';
-            document.getElementById('mode-upscale').classList.add('active');
-            document.getElementById('mode-restore').classList.remove('active');
-            document.getElementById('upscale-controls').style.display = 'block';
-            document.getElementById('restore-controls').style.display = 'none';
-        });
+        function setMode(mode) {
+            currentMode = mode;
+            ['mode-upscale', 'mode-restore', 'mode-vectorize'].forEach(id => {
+                document.getElementById(id).classList.toggle('active', id === 'mode-' + mode);
+            });
+            document.getElementById('upscale-controls').style.display = mode === 'upscale' ? 'block' : 'none';
+            document.getElementById('restore-controls').style.display = mode === 'restore' ? 'block' : 'none';
+            document.getElementById('vectorize-controls').style.display = mode === 'vectorize' ? 'block' : 'none';
 
-        document.getElementById('mode-restore').addEventListener('click', () => {
-            currentMode = 'restore';
-            document.getElementById('mode-restore').classList.add('active');
-            document.getElementById('mode-upscale').classList.remove('active');
-            document.getElementById('upscale-controls').style.display = 'none';
-            document.getElementById('restore-controls').style.display = 'block';
-        });
+            // Vectorizing works on a whole image in one pass — none of the
+            // GPU tiling/VRAM controls or video support apply to it.
+            const isVectorize = mode === 'vectorize';
+            document.getElementById('raster-only-controls').style.display = isVectorize ? 'none' : 'block';
+            document.getElementById('refine-controls').style.display = isVectorize ? 'none' : 'block';
+            document.getElementById('type-tabs').style.display = isVectorize ? 'none' : 'flex';
+            if (isVectorize && currentType === 'video') {
+                document.getElementById('type-image').click();
+            }
+
+            const submitLabel = mode === 'vectorize' ? 'Vectorizar Imagen' : (mode === 'restore' ? 'Restaurar Imagen' : 'Escalar Imagen');
+            document.querySelector('#submit-btn span').innerText = submitLabel;
+        }
+
+        document.getElementById('mode-upscale').addEventListener('click', () => setMode('upscale'));
+        document.getElementById('mode-restore').addEventListener('click', () => setMode('restore'));
+        document.getElementById('mode-vectorize').addEventListener('click', () => setMode('vectorize'));
+
+        const vecSpeckleInput = document.getElementById('vectorizeFilterSpeckle');
+        const vecSpeckleVal = document.getElementById('vectorizeFilterSpeckle-val');
+        vecSpeckleInput.addEventListener('input', () => vecSpeckleVal.innerText = vecSpeckleInput.value);
+
+        const vecPrecisionInput = document.getElementById('vectorizeColorPrecision');
+        const vecPrecisionVal = document.getElementById('vectorizeColorPrecision-val');
+        vecPrecisionInput.addEventListener('input', () => vecPrecisionVal.innerText = vecPrecisionInput.value);
 
         document.getElementById('type-image').addEventListener('click', () => {
             currentType = 'image';
@@ -325,6 +633,10 @@
         const bilTolInput = document.getElementById('bilateralTol');
         const bilTolVal = document.getElementById('bilateralTolVal');
         bilTolInput.addEventListener('input', () => bilTolVal.innerText = bilTolInput.value);
+
+        const bilRadiusInput = document.getElementById('bilateralRadius');
+        const bilRadiusVal = document.getElementById('bilateralRadiusVal');
+        bilRadiusInput.addEventListener('input', () => bilRadiusVal.innerText = bilRadiusInput.value);
 
         const deblockIntInput = document.getElementById('deblockInt');
         const deblockIntVal = document.getElementById('deblockIntVal');
@@ -421,6 +733,7 @@
             formData.append('operation_mode', currentMode);
             formData.append('restore_filter', document.getElementById('restoreFilter').value);
             formData.append('bilateral_tol', document.getElementById('bilateralTol').value);
+            formData.append('bilateral_radius', bilRadiusInput.value);
             formData.append('deblock_int', document.getElementById('deblockInt').value);
             formData.append('scale', scaleInput.value);
             formData.append('vram_limit_mb', vramInput.value);
@@ -432,7 +745,12 @@
             formData.append('padding', document.getElementById('padding').value);
             formData.append('debug', document.getElementById('debugMode').checked);
             formData.append('fps', document.getElementById('fps').value);
-            
+            formData.append('use_precomputed_refinement', document.getElementById('precomputedRefinement').checked);
+            formData.append('smooth_staircase', document.getElementById('smoothStaircase').checked);
+            formData.append('vectorize_preset', document.getElementById('vectorizePreset').value);
+            formData.append('vectorize_filter_speckle', vecSpeckleInput.value);
+            formData.append('vectorize_color_precision', vecPrecisionInput.value);
+
             formData.append('operation_mode', currentMode);
             formData.append('restore_filter', document.getElementById('restoreFilter').value);
             formData.append('bilateral_tol', document.getElementById('bilateralTol').value);
@@ -496,7 +814,8 @@
                     const img = document.getElementById('result-img');
                     img.src = url;
                     img.style.display = 'block';
-                    document.getElementById('download-link').download = 'upscaled.png';
+                    const isSvg = blob.type.includes('svg');
+                    document.getElementById('download-link').download = isSvg ? 'vectorized.svg' : 'upscaled.png';
                 }
                 
                 document.getElementById('download-link').href = url;

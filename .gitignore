@@ -1,25 +1,92 @@
-# Generado por Cargo
+# Compilación y artefactos de Rust / Cargo
 /target/
-/Debug/
-/debug/
+target/
+Debug/
+debug/
+Release/
+release/
+x64/
+x86/
 
-# Archivos de respaldo generados por rustfmt
+# Respaldos y perfiles de Rust
 **/*.rs.bk
+*.rs.bk
+*.bk
+*.profraw
+*.profdata
 
-# Archivos generados por builds en Windows con MSVC
+# Binarios y archivos de compilación de Windows / MSVC
+*.exe
 *.pdb
+*.ilk
+*.obj
+*.lib
+*.dll
+*.exp
+*.idb
+*.d
 
-# Archivos temporales y de sistema
-*.tmp
-*.temp
-*.swp
-.DS_Store
-
-# Entornos de desarrollo
+# Archivos de configuración de IDEs y editores
 .idea/
+*.iml
+cmake-build-*/
 .vscode/
+*.code-workspace
+.vs/
 *.suo
+*.user
+*.userosv
+*.sln.docstates
 *.ntvs*
 *.njsproj
 *.sln
+*.sublime-project
+*.sublime-workspace
+
+# Asistentes de IA y configuración local
+.claude/
+.cursor/
+.gemini/
+
+# Variables de entorno y secretos
+.env
+.env.*
+!.env.example
+
+# Archivos temporales, logs y respaldos de editores
+*.tmp
+*.temp
+*.log
+*.swp
+*.swo
 *.sw?
+*~
+\#*\#
+.\#*
+
+# Carpetas de salida y temporales en tiempo de ejecución
+/output/
+/outputs/
+/temp/
+/tmp/
+/uploads/
+
+# Archivos de sistema operativo
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+.fuse_hidden*
+.directory
+.Trash-*

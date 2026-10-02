@@ -1,3 +1,12 @@
+// NOTE: this struct only needs to be declared up through the last field it
+// actually reads (bilateral_radius) — a uniform buffer binding only needs
+// to be at least as large as what a shader's own struct declares, and this
+// is the SAME underlying Params buffer shader.wgsl uses, just truncated
+// here. `_pad_origin_x`/`_pad_origin_y` exist purely to keep byte offsets
+// aligned with the real struct (see gpu_compute.rs's Params) — this shader
+// has no use for a tile's output-space origin (restoration always runs at
+// scale=1.0, one tile, no addressing concern), it just needs to occupy the
+// same bytes so `bilateral_radius` lands on the correct offset.
 struct Params {
     width: u32,
     height: u32,
@@ -10,7 +19,12 @@ struct Params {
     restore_filter: u32,
     bilateral_tol: f32,
     deblock_int: f32,
-    _pad2: u32,
+    _pad_origin_x: u32,
+    _pad_origin_y: u32,
+    _pad_use_precomputed_refinement: u32,
+    /// User-adjustable spatial radius (pixels) of the bilateral filter's
+    /// window — see the doc comment on `apply_bilateral` below.
+    bilateral_radius: u32,
 };
 
 @group(0) @binding(0) var<storage, read> input_buffer: array<f32>;
@@ -34,8 +48,26 @@ fn set_output(x: u32, y: u32, c: u32, val: f32) {
 // Bilateral Filter
 // -----------------------------------------------------------------------------
 fn apply_bilateral(x: i32, y: i32, c: i32) -> f32 {
-    let radius = 2; // 5x5
-    let sigma_d = 2.0; // Spatial variance
+    // A small window (e.g. the original hardcoded radius 2, 5x5) gives the
+    // spatial average almost no room to work with: on a diagonal
+    // anti-aliased edge, a window this small effectively snaps to "which
+    // side of the line is this pixel closer to" at each position
+    // independently, and since a diagonal line intersects a small square
+    // grid differently pixel by pixel, the result is a staircase — no
+    // choice of `bilateral_tol` (the color/range term) fixes this, since
+    // it's a spatial-support problem: tightening it preserves the
+    // staircase, loosening it just blurs real edges too (confirmed:
+    // raising tolerance alone made results uniformly blurry instead of
+    // fixing the diagonal steps). A wider window gives the spatial term
+    // more samples to average smoothly along the gradient direction, which
+    // directly targets the staircase without touching edge preservation
+    // (still governed by sigma_r/bilateral_tol) — exposed as
+    // `bilateral_radius` (UI: "Radio del Filtro Bilateral") instead of a
+    // fixed constant, since how much staircase vs. fine-detail loss is
+    // acceptable is a per-image, per-taste tradeoff, not something to
+    // hardcode once and hope it fits every image.
+    let radius = max(i32(params.bilateral_radius), 1);
+    let sigma_d = f32(radius) * 0.75; // Spatial variance, scaled with the radius so a wider window actually contributes smoothing instead of just adding near-zero-weight samples at its edges.
     let sigma_r = params.bilateral_tol; // Range (color) variance
     
     let center_color = get_input(x, y, c);
